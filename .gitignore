@@ -1,0 +1,8 @@
+.idea/
+build/
+dist/
+*.egg-info/
+*.pyc
+*.bak
+*.log
+tests.py
