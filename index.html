@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>GetDNS by dnsdb-team</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">GetDNS</h1>
+      <h2 class="project-tagline"></h2>
+      <a href="https://github.com/dnsdb-team/getdns" class="btn">View on GitHub</a>
+      <a href="https://github.com/dnsdb-team/getdns/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/dnsdb-team/getdns/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="getdns" class="anchor" href="#getdns" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>GetDNS</h1>
+
+<p><strong>GetDNS</strong> 是一个使用DnsDB API查询DNS记录命令行工具。</p>
+
+<h1>
+<a id="dependencies" class="anchor" href="#dependencies" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Dependencies</h1>
+
+<ul>
+<li><a href="https://pysdk.dnsdb.io">DnsDB Python SDK</a></li>
+</ul>
+
+<h1>
+<a id="install" class="anchor" href="#install" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Install</h1>
+
+<ol>
+<li>安装dnsdb-python-sdk, 查看<a href="https://github.com/dnsdb-team/dnsdb-python-sdk/wiki/Tutorials">这里</a>
+</li>
+<li>
+<p>克隆项目</p>
+
+<div class="highlight highlight-source-shell"><pre>git clone https://github.com/dnsdb-team/getdns.git</pre></div>
+</li>
+<li>
+<p>安装</p>
+
+<div class="highlight highlight-source-shell"><pre><span class="pl-c1">cd</span> getdns
+[sudo] python setup.py install</pre></div>
+</li>
+</ol>
+
+<h1>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Usage</h1>
+
+<ol>
+<li>
+<p>查看帮助</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns -h</pre></div>
+</li>
+</ol>
+
+<h1>
+<a id="子命令" class="anchor" href="#%E5%AD%90%E5%91%BD%E4%BB%A4" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>子命令</h1>
+
+<p>可用子命令</p>
+
+<ul>
+<li>config 更改配置</li>
+<li>search 查询DNS</li>
+<li>bulk-search 批量查询DNS</li>
+<li>resources 获取当前账号资源信息(API剩余请求次数)</li>
+</ul>
+
+<p>查看子命令帮助</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns <span class="pl-k">&lt;</span><span class="pl-c1">command</span><span class="pl-k">&gt;</span> -h</pre></div>
+
+<h2>
+<a id="config" class="anchor" href="#config" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>config</h2>
+
+<p><code>config</code> 可用用于配置默认的用户名和密码(DnsDB账号)</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns config -u <span class="pl-k">&lt;</span>your username<span class="pl-k">&gt;</span> -p <span class="pl-k">&lt;</span>your password<span class="pl-k">&gt;</span></pre></div>
+
+<h2>
+<a id="search" class="anchor" href="#search" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>search</h2>
+
+<p><code>search</code>命令用于查询dns记录, 该命令没成功执行一次会扣除当前账号的API请求次数, 没有使用<code>-a</code>或<code>--all</code>参数时， 每次执行最多返回30条查询结果</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns search --domain example.com</pre></div>
+
+<p><code>-o</code>参数用于指定输出位置, 默认为<code>-</code>, 表示输出到标准输出(<code>stdout</code>), 也可以输入到文件中</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns search --domain example.com -o dns-output.txt</pre></div>
+
+<p><code>a</code>或<code>-all</code>参数将会返回全部查询结果, 每次查询会根据结果数扣除当前账号的API请求次数</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns search --domain example.com  -a -o dns-output.txt</pre></div>
+
+<h2>
+<a id="bulk-search" class="anchor" href="#bulk-search" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>bulk-search</h2>
+
+<p><code>bulk-search</code>用于批量查询DNS记录。</p>
+
+<p><code>bulk-search</code>默认通过标准输入(<code>stdin</code>)获取查询条件, 每行表示一个查询条件, 可以通过<code>-i</code>参数指定其他文件作为输入文件。</p>
+
+<p><code>--data-type</code>指定输入条件的类型, 默认为<code>domain</code>, 其他可选值为<code>host</code>, <code>ip</code>, <code>type</code></p>
+
+<p>通过标准输入(stdin)查询域名</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns bulk-search
+stdin<span class="pl-k">&gt;&gt;</span>example.com</pre></div>
+
+<p>以文件查询输入条件</p>
+
+<p>假设存在一个domain.txt文件， 内容如下:</p>
+
+<pre><code>a.com
+b.com
+c.com
+</code></pre>
+
+<p>批量查询该文件中的域名的DNS记录</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns bulk-search -i domain.txt -o output.txt</pre></div>
+
+<p>或</p>
+
+<div class="highlight highlight-source-shell"><pre>cat domain.txt <span class="pl-k">|</span> getdns bulk-search -o output.txt</pre></div>
+
+<p>根据IP批量查询解析到该IP的DNS记录
+假设有文件ip.txt, 内容如下：</p>
+
+<pre><code>111.111.111.111
+222.222.222.222
+</code></pre>
+
+<div class="highlight highlight-source-shell"><pre>getdns bulk-search -i domain.txt -o output.txt --data-type ip</pre></div>
+
+<p>或</p>
+
+<div class="highlight highlight-source-shell"><pre>cat domain.txt <span class="pl-k">|</span> getdns bulk-search -o output.txt --data-type ip</pre></div>
+
+<h2>
+<a id="resources" class="anchor" href="#resources" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>resources</h2>
+
+<p>查看剩余API请求次数</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns resources</pre></div>
+
+<h1>
+<a id="相关链接" class="anchor" href="#%E7%9B%B8%E5%85%B3%E9%93%BE%E6%8E%A5" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>相关链接</h1>
+
+<ul>
+<li><a href="https://dnsdb.io">DnsDB 官网</a></li>
+<li><a href="https://pysdk.dnsdb.io">DnsDB Python SDK</a></li>
+<li><a href="https://dnsdb.io/apiservice">DnsDB API服务</a></li>
+</ul>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/dnsdb-team/getdns">GetDNS</a> is maintained by <a href="https://github.com/dnsdb-team">dnsdb-team</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
