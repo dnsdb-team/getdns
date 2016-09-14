@@ -12,8 +12,10 @@ import os
 import sys
 
 try:
+    # python2
     from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 except ImportError:
+    # python3
     from configparser import ConfigParser, NoSectionError, NoOptionError
 
 CONFIG_PATH = os.path.expanduser("~/.getdns")
@@ -30,8 +32,10 @@ def get_output_file(output_path):
 
 def read_line(prompt=''):
     try:
+        # python2
         return raw_input(prompt)
     except NameError:
+        # python3
         return input(prompt)
 
 
@@ -60,10 +64,12 @@ def get_defaults():
         conf.read(CONFIG_PATH)
         defaults['username'] = get_config_value(conf, 'account', 'username', '')
         defaults['password'] = get_config_value(conf, 'account', 'password', '')
+        defaults['proxy'] = get_config_value(conf, 'settings', 'proxy', '')
         defaults['api_url'] = get_config_value(conf, 'settings', 'api_url', 'https://dnsdb.io/api/v1')
     else:
         defaults['username'] = ''
         defaults['password'] = ''
+        defaults['proxy'] = ''
         defaults['api_url'] = 'https://dnsdb.io/api/v1'
     return defaults
 
@@ -84,7 +90,10 @@ def search_cmd(args):
     if not password:
         password = getpass("Password:")
 
-    client = DnsDBClient()
+    proxies = None
+    if args.proxy:
+        proxies = {'http': args.proxy, 'https': args.proxy}
+    client = DnsDBClient(proxies=proxies)
     try:
         client.login(username, password)
     except Exception as e:
@@ -127,7 +136,10 @@ def bulk_search_cmd(args):
         username = read_line("Username:")
     if not password:
         password = getpass("Password:")
-    client = DnsDBClient()
+    proxies = None
+    if args.proxy:
+        proxies = {'http': args.proxy, 'https': args.proxy}
+    client = DnsDBClient(proxies=proxies)
     try:
         client.login(username, password)
     except Exception as e:
@@ -166,7 +178,10 @@ def resources_cmd(args):
         username = read_line("Username:")
     if not password:
         password = getpass("Password:")
-    client = DnsDBClient()
+    proxies = None
+    if args.proxy:
+        proxies = {'http': args.proxy, 'https': args.proxy}
+    client = DnsDBClient(proxies=proxies)
     try:
         client.login(username, password)
         resources = client.get_resources()
@@ -180,6 +195,9 @@ def config_cmd(args):
         if os.path.exists(CONFIG_PATH):
             os.remove(CONFIG_PATH)
         return
+    if args.show:
+        defaults = get_defaults()
+        print(defaults)
     if not os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, 'wb') as f:
             f.write('[account]\n[settings]\n'.encode())
@@ -188,6 +206,7 @@ def config_cmd(args):
     conf.set('account', 'username', args.username)
     conf.set('account', 'password', args.password)
     conf.set('settings', 'api_url', args.api_url)
+    conf.set('settings', 'proxy', args.proxy)
     conf.write(open(CONFIG_PATH, "w"))
 
 
@@ -196,26 +215,29 @@ def get_args():
     username = defaults['username']
     password = defaults['password']
     api_url = defaults['api_url']
+    proxy = defaults['proxy']
     parser = ArgumentParser(description="getdns is DNS query tool power by DnsDB.io")
     subparsers = parser.add_subparsers()
     subparsers.required = True
 
+    proxy_help = 'set proxy. HTTP proxy: "http://user:pass@host:port/", SOCKS5 proxy: "socks://user:pass@host:port"'
     # search parser
     search_parser = subparsers.add_parser('search', help='search DNS records')
-    search_group = search_parser.add_argument_group("search options")
-    search_group.add_argument('-d', '--domain', help="search by domain")
-    search_group.add_argument('-H', '--host', help="search DNS by host")
-    search_group.add_argument('--ip', help="search DNS by ip")
-    search_group.add_argument('-t', '--type', help="search DNS by DNS type")
-    search_group.add_argument('--start', help="set result start position", type=int, default=0)
-    search_parser.add_argument('-u', '--username', help="set username, default '%s'" % username, default=username)
-    search_parser.add_argument('-p', '--password', help="set password, default '%s'" % password, default=password)
+    search_group = search_parser.add_argument_group('search options')
+    search_group.add_argument('-d', '--domain', help='search by domain')
+    search_group.add_argument('-H', '--host', help='search DNS by host')
+    search_group.add_argument('--ip', help='search DNS by ip')
+    search_group.add_argument('-t', '--type', help='search DNS by DNS type')
+    search_group.add_argument('--start', help='set result start position', type=int, default=0)
+    search_parser.add_argument('-u', '--username', help='set username, default "%s"' % username, default=username)
+    search_parser.add_argument('-p', '--password', help='set password, default "%s"' % password, default=password)
     search_parser.add_argument('-a', '--all',
                                help='retrieve all results, it will ignored [--start] option',
                                action='store_true', default=False)
     search_parser.add_argument('-o', '--output', help='specify output file, default "-", "-" represents stdout',
                                default='-')
-    search_parser.add_argument('--api-url', help="set api URL, default '%s'" % api_url, default=api_url)
+    search_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
+    search_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
     search_parser.set_defaults(func=search_cmd)
 
     # bulk search parser
@@ -225,33 +247,37 @@ def get_args():
     bulk_search_parser.add_argument('-T', '--data-type', help='specify input data type',
                                     choices=['domain', 'ip', 'host', 'type'],
                                     default='domain')
-    bulk_search_parser.add_argument('-u', '--username', help="set username, default '%s'" % username, default=username)
-    bulk_search_parser.add_argument('-p', '--password', help="set password, default '%s'" % password, default=password)
+    bulk_search_parser.add_argument('-u', '--username', help='set username, default "%s"' % username, default=username)
+    bulk_search_parser.add_argument('-p', '--password', help='set password, default "%s"' % password, default=password)
     bulk_search_parser.add_argument('-o', '--output', help='specify output file, default "-", "-" represents stdout',
                                     default='-')
-    bulk_search_parser.add_argument('--api-url', help="set api URL, default '%s'" % api_url, default=api_url)
-    search_group = bulk_search_parser.add_argument_group("search options")
-    search_group.add_argument('-d', '--domain', help="search by domain")
-    search_group.add_argument('-H', '--host', help="search DNS by host")
-    search_group.add_argument('--ip', help="search DNS by ip")
-    search_group.add_argument('-t', '--type', help="search DNS by DNS type")
+    bulk_search_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
+    bulk_search_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
+    search_group = bulk_search_parser.add_argument_group('search options')
+    search_group.add_argument('-d', '--domain', help='search by domain')
+    search_group.add_argument('-H', '--host', help='search DNS by host')
+    search_group.add_argument('--ip', help='search DNS by ip')
+    search_group.add_argument('-t', '--type', help='search DNS by DNS type')
     bulk_search_parser.set_defaults(func=bulk_search_cmd)
 
     # resources parser
     resources_parser = subparsers.add_parser('resources', help='get resources information')
-    resources_parser.add_argument('-u', '--username', help="set username, default '%s'" % username, default=username)
-    resources_parser.add_argument('-p', '--password', help="set password, default '%s'" % password, default=password)
-    resources_parser.add_argument('--api-url', help="set api URL, default '%s'" % api_url, default=api_url)
+    resources_parser.add_argument('-u', '--username', help='set username, default "%s"' % username, default=username)
+    resources_parser.add_argument('-p', '--password', help='set password, default "%s"' % password, default=password)
+    resources_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
+    resources_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
     resources_parser.set_defaults(func=resources_cmd)
 
     # config parser
     config_parser = subparsers.add_parser('config', help='change configuration')
-    config_parser.add_argument('-u', '--username', help="set default username, default '%s'" % username,
+    config_parser.add_argument('-u', '--username', help='set default username, default "%s"' % username,
                                default=username)
-    config_parser.add_argument('-p', '--password', help="set default password, default '%s'" % password,
+    config_parser.add_argument('-p', '--password', help='set default password, default "%s"' % password,
                                default=password)
-    config_parser.add_argument('--api-url', help="set api URL, default '%s'" % api_url, default=api_url)
-    config_parser.add_argument('--reset', help="reset configuration", action='store_true', default=False)
+    config_parser.add_argument('--api-url', help='set default API URL, default "%s"' % api_url, default=api_url)
+    config_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
+    config_parser.add_argument('--reset', help='reset configuration', action='store_true', default=False)
+    config_parser.add_argument('-s', '--show', help='show current configuration', action='store_true', default=False)
     config_parser.set_defaults(func=config_cmd)
     config_parser.set_defaults(func=config_cmd)
 
