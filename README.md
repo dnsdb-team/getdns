@@ -1,6 +1,6 @@
-# getdns
+# GetDNS
 
-**getdns** 是一个使用DnsDB API查询DNS记录命令行工具。
+**GetDNS** 是一个使用DnsDB API查询DNS记录命令行工具。
 
 # Dependencies
 
@@ -46,11 +46,37 @@ getdns <command> -h
 
 ## config
 
-`config` 可用用于配置默认的用户名和密码(DnsDB账号)
+`config`命令用于配置默认的用户名和密码(DnsDB账号)，配置该项可以让您在使用`search`，`bulk-search`，`resources`命令时无需再次输入用户名和密码
 
 ```shell
 getdns config -u <your username> -p <your password>
 ```
+
+查看当前配置
+
+```shell
+getdns config --show
+```
+
+恢复默认配置
+
+```shell
+getdns config --reset
+```
+
+配置代理:
+
+1. HTTP代理
+
+    ```shell
+    getdns config --proxy http://user:pass@host:port
+    ```
+
+2. SOCKS5代理
+
+    ```shell
+    getdns config --proxy socks5://user:pass@host:port
+    ```
 
 ## search 
 
@@ -66,7 +92,7 @@ getdns search --domain example.com
 getdns search --domain example.com -o dns-output.txt
 ```
 
-`a`或`-all`参数将会返回全部查询结果, 每次查询会根据结果数扣除当前账号的API请求次数
+`a`或`--all`参数将会返回全部查询结果, 每次查询会根据结果数扣除当前账号的API请求次数
 
 ```shell
 getdns search --domain example.com  -a -o dns-output.txt
