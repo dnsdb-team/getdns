@@ -28,13 +28,17 @@ def get_output_file(output_path):
         return open(output_path, 'ab')
 
 
+def read_line(prompt=''):
+    try:
+        return raw_input(prompt)
+    except NameError:
+        return input(prompt)
+
+
 def read_stdin_lines():
     while True:
         try:
-            try:
-                yield raw_input()
-            except NameError:
-                yield input()
+            yield read_line()
         except EOFError:
             break
 
@@ -76,7 +80,7 @@ def search_cmd(args):
     get_all = args.all
 
     if not username:
-        username = raw_input("Username:")
+        username = read_line("Username:")
     if not password:
         password = getpass("Password:")
 
@@ -120,7 +124,7 @@ def bulk_search_cmd(args):
     username = args.username
     password = args.password
     if not username:
-        username = raw_input("Username:")
+        username = read_line("Username:")
     if not password:
         password = getpass("Password:")
     client = DnsDBClient()
@@ -159,7 +163,7 @@ def resources_cmd(args):
     username = args.username
     password = args.password
     if not username:
-        username = raw_input("Username:")
+        username = read_line("Username:")
     if not password:
         password = getpass("Password:")
     client = DnsDBClient()
