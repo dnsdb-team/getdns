@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 PACKAGE = "getdns"
-NAME = "getdns"
+NAME = "dnsdb-getdns"
 DESCRIPTION = "Query DNS records from dnsdb.io"
 AUTHOR = "DnsDB Team"
 AUTHOR_EMAIL = "team@dnsdb.io"
@@ -35,5 +35,5 @@ setup(
         ]
     },
     zip_safe=False,
-    install_requires=['requests', ],
+    install_requires=['dnsdb-python-sdk', ],
 )

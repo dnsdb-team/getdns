@@ -8,18 +8,9 @@
 
 # Install
 
-1. 安装dnsdb-python-sdk, 查看[这里](https://github.com/dnsdb-team/dnsdb-python-sdk/wiki/Tutorials)
-2. 克隆项目
-
-    ```shell
-git clone https://github.com/dnsdb-team/getdns.git
-    ```
-3. 安装
-
-    ```shell
-cd getdns
-[sudo] python setup.py install
-    ```
+```shell
+pip install --upgrade dnsdb-getdns
+```
 
 # Usage
 
@@ -78,7 +69,7 @@ getdns config --reset
     getdns config --proxy socks5://user:pass@host:port
     ```
 
-## search 
+## search
 
 `search`命令用于查询dns记录, 该命令没成功执行一次会扣除当前账号的API请求次数, 没有使用`-a`或`--all`参数时， 每次执行最多返回30条查询结果
 
@@ -158,6 +149,15 @@ cat domain.txt | getdns bulk-search -o output.txt --data-type ip
 ```shell
 getdns resources
 ```
+
+# FAQ
+
+1. Mac OS X 使用getdns命令遇到下面错误，您可以查看[这里](https://github.com/dnsdb-team/dnsdb-python-sdk/wiki/Tutorials#%E5%AE%89%E8%A3%85%E5%88%B0mac-os-x)
+
+    ```shell
+requests.exceptions.SSLError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:590)
+    ```
+
 # 相关链接
 
 * [DnsDB 官网](https://dnsdb.io)
