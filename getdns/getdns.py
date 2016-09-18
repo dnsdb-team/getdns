@@ -10,6 +10,7 @@ from getpass import getpass
 from _io import BufferedWriter
 import os
 import sys
+import re
 
 try:
     # python2
@@ -19,6 +20,24 @@ except ImportError:
     from configparser import ConfigParser, NoSectionError, NoOptionError
 
 CONFIG_PATH = os.path.expanduser("~/.getdns")
+
+
+def validate_ip(ip):
+    pattern = re.compile('^(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9])\.'
+                         '(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.'
+                         '(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.'
+                         '(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[0-9])$')
+    return pattern.match(ip) is not None
+
+
+def check_search_params(domain, host, ip):
+    if ip:
+        if not validate_ip(ip):
+            sys.stderr.write('"%s" is not a valid IP address\n' % ip)
+            sys.exit(-1)
+    if domain is None and host is None and ip is None:
+        sys.stderr.write('You need to provide at least one parameter in "--domain", "--ip", "--host"\n')
+        sys.exit(-1)
 
 
 def get_output_file(output_path):
@@ -84,6 +103,7 @@ def search_cmd(args):
     ip = args.ip
     start = args.start
     get_all = args.all
+    check_search_params(domain, host, ip)
 
     if not username:
         username = read_line("Username:")
@@ -97,7 +117,7 @@ def search_cmd(args):
     try:
         client.login(username, password)
     except Exception as e:
-        sys.stderr.write(str(e.message) + '\n')
+        sys.stderr.write(str(e) + '\n')
         sys.exit(-1)
     output = get_output_file(args.output)
     try:
@@ -111,7 +131,7 @@ def search_cmd(args):
             else:
                 output.write(str(record) + '\n')
     except Exception as e:
-        sys.stderr.write(str(e.message) + '\n')
+        sys.stderr.write(str(e) + '\n')
     finally:
         output.close()
 
@@ -130,6 +150,7 @@ def bulk_search_cmd(args):
     dns_type = args.type
     ip = args.ip
     host = args.host
+    check_search_params(domain, host, ip)
     username = args.username
     password = args.password
     if not username:
@@ -143,7 +164,7 @@ def bulk_search_cmd(args):
     try:
         client.login(username, password)
     except Exception as e:
-        sys.stderr.write(str(e.message) + '\n')
+        sys.stderr.write(str(e) + '\n')
         sys.exit(-1)
     output_file = get_output_file(args.output)
     try:
@@ -164,7 +185,7 @@ def bulk_search_cmd(args):
                 else:
                     output_file.write(str(record) + '\n')
     except Exception as e:
-        sys.stderr.write(str(e.message) + '\n')
+        sys.stderr.write(str(e) + '\n')
     finally:
         output_file.close()
         input_file.close()
