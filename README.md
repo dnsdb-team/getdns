@@ -1,5 +1,9 @@
 # GetDNS
 
+[![pypi-version]][pypi]
+[![python-version]][pypi]
+[![license]][pypi]
+
 **GetDNS** 是一个使用DnsDB API查询DNS记录命令行工具。
 
 # Dependencies
@@ -163,3 +167,8 @@ requests.exceptions.SSLError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert h
 * [DnsDB 官网](https://dnsdb.io)
 * [DnsDB Python SDK](https://pysdk.dnsdb.io)
 * [DnsDB API服务](https://dnsdb.io/apiservice)
+
+[pypi-version]: https://img.shields.io/pypi/v/dnsdb-getdns.svg
+[pypi]: https://pypi.python.org/pypi/dnsdb-getdns
+[python-version]: https://img.shields.io/pypi/pyversions/dnsdb-getdns.svg
+[license]: https://img.shields.io/pypi/l/dnsdb-getdns.svg
