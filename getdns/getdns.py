@@ -8,6 +8,7 @@ from dnsdb.clients import DnsDBClient
 from dnsdb.errors import AuthenticationError
 from getpass import getpass
 from _io import BufferedWriter
+import pickle
 import os
 import sys
 import re
@@ -20,6 +21,7 @@ except ImportError:
     from configparser import ConfigParser, NoSectionError, NoOptionError
 
 CONFIG_PATH = os.path.expanduser("~/.getdns")
+CACHE_PATH = os.path.expanduser("~/.getdns.cache")
 
 
 def validate_ip(ip):
@@ -93,6 +95,42 @@ def get_defaults():
     return defaults
 
 
+def load_cache():
+    try:
+        cache_file = open(CACHE_PATH, 'rb')
+        cache = pickle.load(cache_file)
+        cache_file.close()
+        if cache and not cache['access_token'].has_expired():
+            return cache
+        else:
+            return None
+    except Exception:
+        return None
+
+
+def dump_cache(access_token, username, password):
+    cache = {'access_token': access_token, 'username': username, 'password': password}
+    cache_file = open(CACHE_PATH, 'wb')
+    pickle.dump(cache, cache_file)
+    cache_file.close()
+
+
+def login(client, username, password):
+    cache = load_cache()
+    if cache and cache['username'] == username and cache['password'] == password:
+        client.access_token = cache['access_token']
+        client.username = username
+        client.password = password
+        client._DnsDBClient__is_login = True
+    else:
+        try:
+            client.login(username, password)
+            dump_cache(client.access_token, username, password)
+        except Exception as e:
+            sys.stderr.write(str(e) + '\n')
+            sys.exit(-1)
+
+
 def search_cmd(args):
     APIClient.API_BASE_URL = args.api_url
     username = args.username
@@ -104,21 +142,15 @@ def search_cmd(args):
     start = args.start
     get_all = args.all
     check_search_params(domain, host, ip)
-
     if not username:
         username = read_line("Username:")
     if not password:
         password = getpass("Password:")
-
     proxies = None
     if args.proxy:
         proxies = {'http': args.proxy, 'https': args.proxy}
     client = DnsDBClient(proxies=proxies)
-    try:
-        client.login(username, password)
-    except Exception as e:
-        sys.stderr.write(str(e) + '\n')
-        sys.exit(-1)
+    login(client, username, password)
     output = get_output_file(args.output)
     try:
         if get_all:
@@ -131,6 +163,8 @@ def search_cmd(args):
             else:
                 output.write(str(record) + '\n')
     except Exception as e:
+        if isinstance(e, AuthenticationError):
+            os.remove(CACHE_PATH)
         sys.stderr.write(str(e) + '\n')
     finally:
         output.close()
@@ -150,7 +184,9 @@ def bulk_search_cmd(args):
     dns_type = args.type
     ip = args.ip
     host = args.host
-    check_search_params(domain, host, ip)
+    if ip and not validate_ip(ip):
+        sys.stderr.write('"%s" is not a valid IP address\n' % ip)
+        sys.exit(-1)
     username = args.username
     password = args.password
     if not username:
@@ -161,11 +197,7 @@ def bulk_search_cmd(args):
     if args.proxy:
         proxies = {'http': args.proxy, 'https': args.proxy}
     client = DnsDBClient(proxies=proxies)
-    try:
-        client.login(username, password)
-    except Exception as e:
-        sys.stderr.write(str(e) + '\n')
-        sys.exit(-1)
+    login(client, username, password)
     output_file = get_output_file(args.output)
     try:
         for line in input_file:
@@ -203,8 +235,8 @@ def resources_cmd(args):
     if args.proxy:
         proxies = {'http': args.proxy, 'https': args.proxy}
     client = DnsDBClient(proxies=proxies)
+    login(client, username, password)
     try:
-        client.login(username, password)
         resources = client.get_resources()
         print("Remaining DNS request: %s" % resources.remaining_dns_request)
     except AuthenticationError as e:
@@ -266,7 +298,7 @@ def get_args():
     bulk_search_parser.add_argument('-i', '--input', help='specify input file path, default "-", "-" represents stdin',
                                     default='-')
     bulk_search_parser.add_argument('-T', '--data-type', help='specify input data type',
-                                    choices=['domain', 'ip', 'host', 'type'],
+                                    choices=['domain', 'ip', 'host'],
                                     default='domain')
     bulk_search_parser.add_argument('-u', '--username', help='set username, default "%s"' % username, default=username)
     bulk_search_parser.add_argument('-p', '--password', help='set password, default "%s"' % password, default=password)
