@@ -8,15 +8,6 @@
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
     <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
     <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
-    <script>
-      var _hmt = _hmt || [];
-      (function() {
-        var hm = document.createElement("script");
-        hm.src = "//hm.baidu.com/hm.js?835c4344b9111836151dc799b624e770";
-        var s = document.getElementsByTagName("script")[0]; 
-        s.parentNode.insertBefore(hm, s);
-      })();
-    </script>
   </head>
   <body>
     <section class="page-header">
@@ -61,7 +52,7 @@
 </ol>
 
 <h1>
-<a id="子命令" class="anchor" href="#%E5%AD%90%E5%91%BD%E4%BB%A4" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>子命令</h1>
+<a id="commands" class="anchor" href="#commands" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Commands</h1>
 
 <p>可用子命令</p>
 
@@ -109,7 +100,7 @@
 <h2>
 <a id="search" class="anchor" href="#search" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>search</h2>
 
-<p><code>search</code>命令用于查询dns记录, 该命令没成功执行一次会扣除当前账号的API请求次数, 没有使用<code>-a</code>或<code>--all</code>参数时， 每次执行最多返回30条查询结果</p>
+<p><code>search</code>命令用于查询dns记录。没有使用<code>-a</code>或<code>--all</code>参数时，该命令每成功执行一次扣除当前账号一次API请求次数,  且每次执行最多返回30条查询结果</p>
 
 <div class="highlight highlight-source-shell"><pre>getdns search --domain example.com</pre></div>
 
