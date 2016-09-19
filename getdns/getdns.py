@@ -158,10 +158,16 @@ def search_cmd(args):
         else:
             result = client.search_dns(domain=domain, host=host, dns_type=dns_type, ip=ip, start=start)
         for record in result:
-            if isinstance(output, BufferedWriter):
-                output.write((str(record) + '\n').encode())
+            if args.format:
+                line = args.format.replace('#{host}', record.host).replace('#{type}', record.type).replace(
+                    '#{value}', record.value)
+                line += '\n'
             else:
-                output.write(str(record) + '\n')
+                line = str(record) + '\n'
+            if isinstance(output, BufferedWriter):
+                output.write(line.encode())
+            else:
+                output.write(line)
     except Exception as e:
         if isinstance(e, AuthenticationError):
             os.remove(CACHE_PATH)
@@ -212,10 +218,16 @@ def bulk_search_cmd(args):
                 host = line
             result = client.retrieve_dns(domain=domain, host=host, dns_type=dns_type, ip=ip)
             for record in result:
-                if isinstance(output_file, BufferedWriter):
-                    output_file.write((str(record) + '\n').encode())
+                if args.format:
+                    line = args.format.replace('#{host}', record.host).replace('#{type}', record.type).replace(
+                        '#{value}', record.value)
+                    line += '\n'
                 else:
-                    output_file.write(str(record) + '\n')
+                    line = str(record) + '\n'
+                if isinstance(output_file, BufferedWriter):
+                    output_file.write(line.encode())
+                else:
+                    output_file.write(line)
     except Exception as e:
         sys.stderr.write(str(e) + '\n')
     finally:
@@ -274,6 +286,8 @@ def get_args():
     subparsers.required = True
 
     proxy_help = 'set proxy. HTTP proxy: "http://user:pass@host:port/", SOCKS5 proxy: "socks://user:pass@host:port"'
+    format_help = 'set output format. #{host} represents DNS record\'s host, #{type} represents DNS record\'s type,' \
+                  ' #{value} represents DNS reocrd\'s value. For example: -f "#{host},#{type},#{value}"'
     # search parser
     search_parser = subparsers.add_parser('search', help='search DNS records')
     search_group = search_parser.add_argument_group('search options')
@@ -289,6 +303,7 @@ def get_args():
                                action='store_true', default=False)
     search_parser.add_argument('-o', '--output', help='specify output file, default "-", "-" represents stdout',
                                default='-')
+    search_parser.add_argument('-f', '--format', help=format_help)
     search_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
     search_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
     search_parser.set_defaults(func=search_cmd)
@@ -304,6 +319,7 @@ def get_args():
     bulk_search_parser.add_argument('-p', '--password', help='set password, default "%s"' % password, default=password)
     bulk_search_parser.add_argument('-o', '--output', help='specify output file, default "-", "-" represents stdout',
                                     default='-')
+    bulk_search_parser.add_argument('-f', '--format', help=format_help)
     bulk_search_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
     bulk_search_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
     search_group = bulk_search_parser.add_argument_group('search options')
