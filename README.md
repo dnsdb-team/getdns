@@ -24,7 +24,7 @@ pip install --upgrade dnsdb-getdns
 getdns -h
     ```
 
-# 子命令
+# Commands
 
 可用子命令
 
@@ -75,7 +75,7 @@ getdns config --reset
 
 ## search
 
-`search`命令用于查询dns记录, 该命令没成功执行一次会扣除当前账号的API请求次数, 没有使用`-a`或`--all`参数时， 每次执行最多返回30条查询结果
+`search`命令用于查询dns记录。没有使用`-a`或`--all`参数时，该命令每成功执行一次扣除当前账号一次API请求次数,  且每次执行最多返回30条查询结果
 
 ```shell
 getdns search --domain example.com
