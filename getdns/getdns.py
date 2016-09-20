@@ -7,7 +7,7 @@ from dnsdb.api import APIClient
 from dnsdb.clients import DnsDBClient
 from dnsdb.errors import AuthenticationError
 from getpass import getpass
-from _io import BufferedWriter
+import csv
 import pickle
 import os
 import sys
@@ -48,7 +48,7 @@ def get_output_file(output_path):
     else:
         if os.path.exists(output_path):
             os.remove(output_path)
-        return open(output_path, 'ab')
+        return open(output_path, 'a')
 
 
 def read_line(prompt=''):
@@ -131,6 +131,37 @@ def login(client, username, password):
             sys.exit(-1)
 
 
+class OutputFormatter(object):
+    def __init__(self, json_format=None, csv_format=None, custom_format=None):
+        self.json = json_format
+        self.csv = csv_format
+        self.custom_format = custom_format
+
+    def format(self, record):
+        if self.custom_format:
+            line = self.custom_format.replace('#{host}', record.host).replace('#{type}', record.type).replace(
+                '#{value}', record.value)
+            line += '\n'
+        else:
+            line = str(record) + '\n'
+        return line
+
+
+def process_output(result, output, formatter, max_result=None):
+    count = 0
+    if formatter.csv:
+        csv_file = output
+        csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+    for record in result:
+        if max_result and count >= max_result:
+            break
+        if formatter.csv:
+            csv_writer.writerow([record.host, record.type, record.value])
+        else:
+            output.write(formatter.format(record))
+        count += 1
+
+
 def search_cmd(args):
     APIClient.API_BASE_URL = args.api_url
     username = args.username
@@ -157,17 +188,7 @@ def search_cmd(args):
             result = client.retrieve_dns(domain=domain, host=host, dns_type=dns_type, ip=ip)
         else:
             result = client.search_dns(domain=domain, host=host, dns_type=dns_type, ip=ip, start=start)
-        for record in result:
-            if args.format:
-                line = args.format.replace('#{host}', record.host).replace('#{type}', record.type).replace(
-                    '#{value}', record.value)
-                line += '\n'
-            else:
-                line = str(record) + '\n'
-            if isinstance(output, BufferedWriter):
-                output.write(line.encode())
-            else:
-                output.write(line)
+        process_output(result, output, OutputFormatter(args.json, args.csv, args.format), args.max)
     except Exception as e:
         if isinstance(e, AuthenticationError):
             os.remove(CACHE_PATH)
@@ -204,7 +225,7 @@ def bulk_search_cmd(args):
         proxies = {'http': args.proxy, 'https': args.proxy}
     client = DnsDBClient(proxies=proxies)
     login(client, username, password)
-    output_file = get_output_file(args.output)
+    output = get_output_file(args.output)
     try:
         for line in input_file:
             line = line.strip()
@@ -217,21 +238,11 @@ def bulk_search_cmd(args):
             elif data_type == 'host':
                 host = line
             result = client.retrieve_dns(domain=domain, host=host, dns_type=dns_type, ip=ip)
-            for record in result:
-                if args.format:
-                    line = args.format.replace('#{host}', record.host).replace('#{type}', record.type).replace(
-                        '#{value}', record.value)
-                    line += '\n'
-                else:
-                    line = str(record) + '\n'
-                if isinstance(output_file, BufferedWriter):
-                    output_file.write(line.encode())
-                else:
-                    output_file.write(line)
+            process_output(result, output, OutputFormatter(args.json, args.csv, args.format), args.max)
     except Exception as e:
         sys.stderr.write(str(e) + '\n')
     finally:
-        output_file.close()
+        output.close()
         input_file.close()
 
 
@@ -264,8 +275,8 @@ def config_cmd(args):
         defaults = get_defaults()
         print(defaults)
     if not os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, 'wb') as f:
-            f.write('[account]\n[settings]\n'.encode())
+        with open(CONFIG_PATH, 'w') as f:
+            f.write('[account]\n[settings]\n')
     conf = ConfigParser()
     conf.read(CONFIG_PATH)
     conf.set('account', 'username', args.username)
@@ -286,8 +297,8 @@ def get_args():
     subparsers.required = True
 
     proxy_help = 'set proxy. HTTP proxy: "http://user:pass@host:port/", SOCKS5 proxy: "socks://user:pass@host:port"'
-    format_help = 'set output format. #{host} represents DNS record\'s host, #{type} represents DNS record\'s type,' \
-                  ' #{value} represents DNS reocrd\'s value. For example: -f "#{host},#{type},#{value}"'
+    format_help = 'set custom output format. #{host} represents DNS record\'s host, #{type} represents DNS ' \
+                  'record\'s type, #{value} represents DNS reocrd\'s value. For example: -f "#{host},#{type},#{value}"'
     # search parser
     search_parser = subparsers.add_parser('search', help='search DNS records')
     search_group = search_parser.add_argument_group('search options')
@@ -303,7 +314,11 @@ def get_args():
                                action='store_true', default=False)
     search_parser.add_argument('-o', '--output', help='specify output file, default "-", "-" represents stdout',
                                default='-')
-    search_parser.add_argument('-f', '--format', help=format_help)
+    output_format_options = search_parser.add_mutually_exclusive_group()
+    output_format_options.add_argument('-j', '--json', help='set JSON output', action='store_true', default=True)
+    output_format_options.add_argument('-c', '--csv', help='set CSV output', action='store_true', default=False)
+    output_format_options.add_argument('-f', '--format', help=format_help)
+    search_parser.add_argument('-m', '--max', help='set the maximum number of search results for the output', type=int)
     search_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
     search_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
     search_parser.set_defaults(func=search_cmd)
@@ -319,7 +334,12 @@ def get_args():
     bulk_search_parser.add_argument('-p', '--password', help='set password, default "%s"' % password, default=password)
     bulk_search_parser.add_argument('-o', '--output', help='specify output file, default "-", "-" represents stdout',
                                     default='-')
-    bulk_search_parser.add_argument('-f', '--format', help=format_help)
+    output_format_options = bulk_search_parser.add_mutually_exclusive_group()
+    output_format_options.add_argument('-j', '--json', help='set JSON output', action='store_true', default=True)
+    output_format_options.add_argument('-c', '--csv', help='set CSV output', action='store_true', default=False)
+    output_format_options.add_argument('-f', '--format', help=format_help)
+    bulk_search_parser.add_argument('-m', '--max', help='set the maximum number of each search results for the output',
+                                    type=int)
     bulk_search_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
     bulk_search_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
     search_group = bulk_search_parser.add_argument_group('search options')
