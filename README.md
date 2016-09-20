@@ -1,5 +1,7 @@
 # GetDNS
 
+[![Join the chat at https://gitter.im/getdns/Lobby](https://badges.gitter.im/getdns/Lobby.svg)](https://gitter.im/getdns/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![pypi-version]][pypi]
 [![python-version]][pypi]
 [![license]][pypi]
