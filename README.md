@@ -93,15 +93,35 @@ getdns search --domain example.com -o dns-output.txt
 getdns search --domain example.com  -a -o dns-output.txt
 ```
 
+`-m`或`--max`参数限制最多输出查询结果数量。例如限制最多输出5条查询结果：
+
+```shell
+getdns search --domain example.com -a --max 5
+```
+
+### Output Format
+
+`search`命令可以通过以下参数改变输出格式(`bulk-search`命令同样适用以下参数)
+
+* `--json`指定输出格式为`JSON`，这是默认选项。
+* `--csv`指定输出格式为`CSV`。
+* `--format <format-string>`自定义输出格式。在`<format-string>`中，`#{host}`将会被DNS记录的host替换，`#{type}`将会被DNS记录的type替换，`#{value}`将会被DNS记录的value替换，其他内容将会被保留。例如:
+    
+    ```shell
+    getdns search --domain exmpale.com --format "host:#{host}, type:#{type}, value:#{value}"
+    ```
+
 ## bulk-search
 
 `bulk-search`用于批量查询DNS记录。
 
+`bulk-search`针对每次查询默认输出全部查询结果，可以通过`--max`限制每次查询输出的最大查询结果数量。
+
 `bulk-search`默认通过标准输入(`stdin`)获取查询条件, 每行表示一个查询条件, 可以通过`-i`参数指定其他文件作为输入文件。
 
-`--data-type`指定输入条件的类型, 默认为`domain`, 其他可选值为`host`, `ip`, `type`
+`--data-type`指定输入条件的类型, 默认为`domain`, 其他可选值为`host`, `ip`。
 
-通过标准输入(stdin)查询域名
+通过标准输入(`stdin`)查询域名
 
 ```shell
 getdns bulk-search
@@ -145,6 +165,9 @@ getdns bulk-search -i domain.txt -o output.txt --data-type ip
 cat domain.txt | getdns bulk-search -o output.txt --data-type ip
 ```
 
+### Output Format
+
+同`search`命令
 
 ## resources
 
