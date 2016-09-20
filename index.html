@@ -8,20 +8,11 @@
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
     <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
     <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
-    <script>
-    var _hmt = _hmt || [];
-    (function() {
-      var hm = document.createElement("script");
-      hm.src = "//hm.baidu.com/hm.js?835c4344b9111836151dc799b624e770";
-      var s = document.getElementsByTagName("script")[0]; 
-      s.parentNode.insertBefore(hm, s);
-    })();
-    </script>
   </head>
   <body>
     <section class="page-header">
       <h1 class="project-name">GetDNS</h1>
-      <h2 class="project-tagline">Query DNS Records From DnsDB.io </h2>
+      <h2 class="project-tagline">Query DNS Records From DnsDB.io</h2>
       <a href="https://github.com/dnsdb-team/getdns" class="btn">View on GitHub</a>
       <a href="https://github.com/dnsdb-team/getdns/zipball/master" class="btn">Download .zip</a>
       <a href="https://github.com/dnsdb-team/getdns/tarball/master" class="btn">Download .tar.gz</a>
@@ -121,16 +112,39 @@
 
 <div class="highlight highlight-source-shell"><pre>getdns search --domain example.com  -a -o dns-output.txt</pre></div>
 
+<p><code>-m</code>或<code>--max</code>参数限制最多输出查询结果数量。例如限制最多输出5条查询结果：</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns search --domain example.com -a --max 5</pre></div>
+
+<h3>
+<a id="output-format" class="anchor" href="#output-format" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Output Format</h3>
+
+<p><code>search</code>命令可以通过以下参数改变输出格式(<code>bulk-search</code>命令同样适用以下参数)</p>
+
+<ul>
+<li>
+<code>--json</code>指定输出格式为<code>JSON</code>，这是默认选项。</li>
+<li>
+<code>--csv</code>指定输出格式为<code>CSV</code>。</li>
+<li>
+<p><code>--format &lt;format-string&gt;</code>自定义输出格式。在<code>&lt;format-string&gt;</code>中，<code>#{host}</code>将会被DNS记录的host替换，<code>#{type}</code>将会被DNS记录的type替换，<code>#{value}</code>将会被DNS记录的value替换，其他内容将会被保留。例如:</p>
+
+<div class="highlight highlight-source-shell"><pre>getdns search --domain exmpale.com --format <span class="pl-s"><span class="pl-pds">"</span>host:#{host}, type:#{type}, value:#{value}<span class="pl-pds">"</span></span></pre></div>
+</li>
+</ul>
+
 <h2>
 <a id="bulk-search" class="anchor" href="#bulk-search" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>bulk-search</h2>
 
 <p><code>bulk-search</code>用于批量查询DNS记录。</p>
 
+<p><code>bulk-search</code>针对每次查询默认输出全部查询结果，可以通过<code>--max</code>限制每次查询输出的最大查询结果数量。</p>
+
 <p><code>bulk-search</code>默认通过标准输入(<code>stdin</code>)获取查询条件, 每行表示一个查询条件, 可以通过<code>-i</code>参数指定其他文件作为输入文件。</p>
 
-<p><code>--data-type</code>指定输入条件的类型, 默认为<code>domain</code>, 其他可选值为<code>host</code>, <code>ip</code>, <code>type</code></p>
+<p><code>--data-type</code>指定输入条件的类型, 默认为<code>domain</code>, 其他可选值为<code>host</code>, <code>ip</code>。</p>
 
-<p>通过标准输入(stdin)查询域名</p>
+<p>通过标准输入(<code>stdin</code>)查询域名</p>
 
 <div class="highlight highlight-source-shell"><pre>getdns bulk-search
 stdin<span class="pl-k">&gt;&gt;</span>example.com</pre></div>
@@ -164,6 +178,11 @@ c.com
 <p>或</p>
 
 <div class="highlight highlight-source-shell"><pre>cat domain.txt <span class="pl-k">|</span> getdns bulk-search -o output.txt --data-type ip</pre></div>
+
+<h3>
+<a id="output-format-1" class="anchor" href="#output-format-1" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Output Format</h3>
+
+<p>同<code>search</code>命令</p>
 
 <h2>
 <a id="resources" class="anchor" href="#resources" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>resources</h2>
