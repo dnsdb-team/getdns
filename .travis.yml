@@ -1,0 +1,20 @@
+language: python
+
+sudo: false
+
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "pypy"
+
+install:
+  - pip install dnsdb-python-sdk
+
+script:
+  - nosetests --with-coverage
+
+after_success:
+  - pip install codecov
+  - codecov

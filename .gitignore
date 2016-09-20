@@ -5,4 +5,5 @@ dist/
 *.pyc
 *.bak
 *.log
-tests.py
+.coverage
+coverage.xml
