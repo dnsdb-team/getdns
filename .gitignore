@@ -1,0 +1,11 @@
+.idea/
+build/
+dist/
+*.egg-info/
+*.pyc
+*.bak
+*.log
+.coverage
+coverage.xml
+.DS_Store
+.eggs

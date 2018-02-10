@@ -1,0 +1,21 @@
+language: python
+
+sudo: false
+
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "3.6"
+
+install:
+  - pip install -r requirements.txt
+  - pip install -r tests/requirements/requirements.txt
+  - pip install coveralls
+
+script:
+  - nosetests --with-coverage --cover-package=getdns
+
+after_success:
+  - coveralls
