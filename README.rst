@@ -4,6 +4,8 @@ GetDNS
 
 .. image:: https://travis-ci.org/dnsdb-team/getdns.svg?branch=master
     :target: https://travis-ci.org/dnsdb-team/getdns
+.. image:: https://coveralls.io/repos/github/dnsdb-team/getdns/badge.svg?branch=master
+    :target: https://coveralls.io/github/dnsdb-team/getdns?branch=master
 .. image:: https://img.shields.io/pypi/v/dnsdb-getdns.svg
     :target: https://pypi.python.org/pypi/dnsdb-getdns
 .. image:: https://img.shields.io/pypi/pyversions/dnsdb-getdns.svg
