@@ -41,6 +41,7 @@ setup(
     install_requires=[
         "colorama",
         "dnsdb_python_sdk>=0.1.2b2",
+        "iptools",
         "setuptools",
         "nose",
         "progress",

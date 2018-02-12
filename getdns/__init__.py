@@ -4,16 +4,16 @@ from __future__ import print_function
 import csv
 import datetime
 import os
-import re
 import sys
 import traceback
 from argparse import ArgumentParser
-from getpass import getpass
 
 from colorama import Fore, Style
 from dnsdb_sdk.api import APIClient
 from dnsdb_sdk.exceptions import APIException
+from iptools import ipv4, ipv6
 import json
+import getpass
 
 __version__ = '0.1.2b1'
 
@@ -28,25 +28,33 @@ CONFIG_PATH = os.path.expanduser("~/.getdns")
 
 
 def show_error(message):
-    sys.stderr.write(Fore.RED + message + Style.RESET_ALL)
+    sys.stderr.write(Fore.RED + message + '\n' + Style.RESET_ALL)
+
+
+def show_info(message):
+    print(message)
 
 
 def validate_ip(ip):
-    pattern = re.compile('^(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9])\.'
-                         '(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.'
-                         '(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.'
-                         '(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[0-9])$')
-    return pattern.match(ip) is not None
+    ip = ip.lower()
+    return ipv4.validate_ip(ip) or ipv4.validate_cidr(ip) or ipv6.validate_ip(ip) or ipv6.validate_cidr(ip)
 
 
-def check_search_params(domain, host, ip):
-    if ip:
+def check_search_params(domain=None, host=None, ip=None, value_domain=None, value_host=None, value_ip=None, email=None):
+    if ip is not None:
         if not validate_ip(ip):
-            show_error('"%s" is not a valid IP address\n' % ip)
-            sys.exit(-1)
-    if domain is None and host is None and ip is None:
-        show_error('You need to provide at least one parameter in "--domain", "--ip", "--host"\n')
-        sys.exit(-1)
+            show_error('"%s" is not a valid IP address' % ip)
+            return False
+    if value_ip is not None:
+        if not validate_ip(value_ip):
+            show_error('"%s" is not a valid IP address' % value_ip)
+            return False
+    if domain is None and host is None and ip is None and value_domain is None and value_host is None and value_ip is None and email is None:
+        main_parameters = ["--domain", "--ip", "--host", "--value-domain", "--value-host", "--value-ip", "--email"]
+        q = '", "'.join(main_parameters)
+        show_error('You need to provide at least one search parameter in "%s"' % q)
+        return False
+    return True
 
 
 def get_output_file(output_path):
@@ -94,6 +102,10 @@ def get_defaults():
     return defaults
 
 
+def get_api_client(api_id, api_key, proxies):
+    return APIClient(api_id=api_id, api_key=api_key, proxies=proxies)
+
+
 class OutputFormatter(object):
     def __init__(self, json_format=None, csv_format=None, custom_format=None):
         self.json = json_format
@@ -104,9 +116,8 @@ class OutputFormatter(object):
         if self.custom_format:
             line = self.custom_format.replace('#{host}', record.host).replace('#{type}', record.type).replace(
                 '#{value}', record.value)
-            line += '\n'
         else:
-            line = json.dumps(dict(record)) + '\n'
+            line = json.dumps(dict(record))
         return line
 
 
@@ -154,7 +165,7 @@ def process_output(result, output, formatter, max_result=None):
         if formatter.csv:
             csv_writer.writerow([record.host, record.type, record.value])
         else:
-            output.write(formatter.format(record))
+            output.write(formatter.format(record) + '\n')
         count += 1
         if show_progress:
             bar.next(count)
@@ -170,22 +181,27 @@ def do_search_cmd(args):
     host = args.host
     dns_type = args.type
     ip = args.ip
+    if ip is not None:
+        ip = ip.lower()
     value_domain = args.value_domain
     value_host = args.value_host
     value_ip = args.value_ip
+    if value_ip is not None:
+        value_ip = value_ip.lower()
     email = args.email
     page = args.page
     page_size = args.page_size
     get_all = args.all
-    check_search_params(domain, host, ip)
+    if not check_search_params(domain, host, ip, value_domain, value_host, value_ip, email):
+        return -1
     if not api_id:
         api_id = read_line("API ID:")
     if not api_key:
-        api_key = getpass("API Key:")
+        api_key = getpass.getpass("API Key:")
     proxies = None
     if args.proxy:
         proxies = {'http': args.proxy, 'https': args.proxy}
-    client = APIClient(api_id, api_key, proxies=proxies)
+    client = get_api_client(api_id, api_key, proxies)
     output = get_output_file(args.output)
     start_time = datetime.datetime.now()
     try:
@@ -200,11 +216,11 @@ def do_search_cmd(args):
     except APIException as e:
         if args.debug:
             traceback.print_exc()
-        show_error(str(e) + '\n')
+        show_error(str(e))
     finally:
         output.flush()
         if args.verbose:
-            print('Running time: %s' % (datetime.datetime.now() - start_time))
+            show_info('Running time: %s' % (datetime.datetime.now() - start_time))
         if output != sys.stdout:
             output.close()
 
@@ -216,21 +232,21 @@ def show_api_user_cmd(args):
     if not api_id:
         api_id = read_line("API ID:")
     if not api_key:
-        api_key = getpass("API Key:")
+        api_key = getpass.getpass("API Key:")
     proxies = None
     if args.proxy:
         proxies = {'http': args.proxy, 'https': args.proxy}
-    client = APIClient(api_id, api_key, proxies=proxies)
+    client = get_api_client(api_id, api_key, proxies)
     try:
         start_time = datetime.datetime.now()
         api_user = client.get_api_user()
-        print(json.dumps(dict(api_user)))
+        show_info(json.dumps(dict(api_user)))
         if args.verbose:
-            print('Running time: %s' % (datetime.datetime.now() - start_time))
+            show_info('Running time: %s' % (datetime.datetime.now() - start_time))
     except Exception as e:
         if args.debug:
             traceback.print_exc()
-        show_error(str(e) + '\n')
+        show_error(str(e))
 
 
 def config_cmd(args):
@@ -240,7 +256,8 @@ def config_cmd(args):
         return
     if args.show:
         defaults = get_defaults()
-        print(defaults)
+        show_info(json.dumps(defaults))
+        return
     if not os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, 'w') as f:
             f.write('[auth]\n[settings]\n')
@@ -257,7 +274,7 @@ def config_cmd(args):
     conf.write(open(CONFIG_PATH, "w"))
 
 
-def get_args():
+def parse_args(args):
     defaults = get_defaults()
     api_id = defaults['api_id']
     api_key = defaults['api_key']
@@ -326,12 +343,14 @@ def get_args():
     config_parser.add_argument('-s', '--show', help='show current configuration', action='store_true', default=False)
     config_parser.set_defaults(func=config_cmd)
 
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     args.func(args)
 
 
-def main():
+def main(args=None):
     try:
-        get_args()
+        if args is None:
+            args = sys.argv[1:]
+        parse_args(args)
     except KeyboardInterrupt:
-        pass
+        show_error("canceled")
