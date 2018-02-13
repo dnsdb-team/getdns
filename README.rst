@@ -45,8 +45,7 @@ Commands
 
 * config 更改配置
 * search 查询DNS
-* bulk-search 批量查询DNS
-* resources 获取当前账号资源信息(API剩余请求次数)
+* api-user 获取当前API User信息
 
 查看子命令帮助
 
@@ -58,11 +57,11 @@ Commands
 config
 >>>>>>>
 
-``config`` 命令用于配置默认的用户名和密码(DnsDB账号)，配置该项可以让您在使用 ``search`` ， ``api_user`` 命令时无需再次输入 ``API ID`` 和 ``API Key``
+``config`` 命令用于配置默认的 ``API ID`` 和 ``API Key`` ，配置该项可以让您在使用 ``search`` ， ``api_user`` 命令时无需再次输入 ``API ID`` 和 ``API Key``
 
 ::
 
-    getdns config -u <your username> -p <your password>
+    getdns config --api-id <Your API ID> -api-key <Your API Key>
 
 
 查看当前配置
