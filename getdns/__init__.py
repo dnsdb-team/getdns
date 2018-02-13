@@ -10,7 +10,7 @@ from argparse import ArgumentParser
 
 from colorama import Fore, Style
 from dnsdb_sdk.api import APIClient
-from dnsdb_sdk.exceptions import APIException
+from progress.bar import IncrementalBar
 from iptools import ipv4, ipv6
 import json
 import getpass
@@ -25,6 +25,8 @@ except ImportError:
     from configparser import ConfigParser, NoSectionError, NoOptionError
 
 CONFIG_PATH = os.path.expanduser("~/.getdns")
+DEFAULT_TIMEOUT = 20
+API_BASE_URL = 'https://api.dnsdb.io'
 
 
 def show_error(message):
@@ -93,17 +95,19 @@ def get_defaults():
         defaults['api_id'] = get_config_value(conf, 'auth', 'api-id', '')
         defaults['api_key'] = get_config_value(conf, 'auth', 'api-key', '')
         defaults['proxy'] = get_config_value(conf, 'settings', 'proxy', '')
-        defaults['api_url'] = get_config_value(conf, 'settings', 'api-url', 'https://api.dnsdb.io')
+        defaults['api_url'] = get_config_value(conf, 'settings', 'api-url', API_BASE_URL)
+        defaults['timeout'] = float(get_config_value(conf, 'settings', 'timeout', DEFAULT_TIMEOUT))
     else:
         defaults['api_id'] = ''
         defaults['api_key'] = ''
         defaults['proxy'] = ''
-        defaults['api_url'] = 'https://dnsdb.io/api'
+        defaults['api_url'] = API_BASE_URL
+        defaults['timeout'] = DEFAULT_TIMEOUT
     return defaults
 
 
-def get_api_client(api_id, api_key, proxies):
-    return APIClient(api_id=api_id, api_key=api_key, proxies=proxies)
+def get_api_client(api_id, api_key, proxies=None, timeout=None):
+    return APIClient(api_id=api_id, api_key=api_key, proxies=proxies, timeout=timeout)
 
 
 class OutputFormatter(object):
@@ -121,31 +125,6 @@ class OutputFormatter(object):
         return line
 
 
-class ProgressBar(object):
-    def __init__(self, title='Progress', max_value=100):
-        try:
-            from progressive.bar import Bar
-            self.support_progressive = True
-            self.bar = Bar(max_value=max_value, title=title)
-            self.bar.cursor.clear_lines(1)
-            self.bar.cursor.save()
-        except ImportError:
-            self.support_progressive = False
-            from progress.bar import Bar
-            self.bar = Bar('Receiving', max=max_value)
-
-    def next(self, count=0):
-        if self.support_progressive:
-            self.bar.cursor.restore()
-            self.bar.draw(value=count)
-        else:
-            self.bar.next()
-
-    def finish(self):
-        if not self.support_progressive:
-            self.bar.finish()
-
-
 def process_output(result, output, formatter, max_result=None):
     global csv_writer, bar
     show_progress = output != sys.stdout
@@ -154,7 +133,7 @@ def process_output(result, output, formatter, max_result=None):
             max_value = max_result
         else:
             max_value = len(result)
-        bar = ProgressBar(title='Receiving', max_value=max_value)
+        bar = IncrementalBar('Receiving', max=max_value)
     count = 0
     if formatter.csv:
         csv_file = output
@@ -168,7 +147,7 @@ def process_output(result, output, formatter, max_result=None):
             output.write(formatter.format(record) + '\n')
         count += 1
         if show_progress:
-            bar.next(count)
+            bar.next()
     if show_progress:
         bar.finish()
 
@@ -201,7 +180,7 @@ def do_search_cmd(args):
     proxies = None
     if args.proxy:
         proxies = {'http': args.proxy, 'https': args.proxy}
-    client = get_api_client(api_id, api_key, proxies)
+    client = get_api_client(api_id, api_key, proxies=proxies, timeout=args.timeout)
     output = get_output_file(args.output)
     start_time = datetime.datetime.now()
     try:
@@ -213,7 +192,7 @@ def do_search_cmd(args):
                                        value_host=value_host, value_ip=value_ip, email=email, page=page,
                                        per_size=page_size)
         process_output(result, output, OutputFormatter(args.json, args.csv, args.format), args.max)
-    except APIException as e:
+    except Exception as e:
         if args.debug:
             traceback.print_exc()
         show_error(str(e))
@@ -236,7 +215,7 @@ def show_api_user_cmd(args):
     proxies = None
     if args.proxy:
         proxies = {'http': args.proxy, 'https': args.proxy}
-    client = get_api_client(api_id, api_key, proxies)
+    client = get_api_client(api_id, api_key, proxies=proxies, timeout=args.timeout)
     try:
         start_time = datetime.datetime.now()
         api_user = client.get_api_user()
@@ -271,6 +250,8 @@ def config_cmd(args):
         conf.set('settings', 'api-url', args.api_url)
     if args.proxy:
         conf.set('settings', 'proxy', args.proxy)
+    if args.timeout:
+        conf.set('settings', 'timeout', str(args.timeout))
     conf.write(open(CONFIG_PATH, "w"))
 
 
@@ -280,6 +261,7 @@ def parse_args(args):
     api_key = defaults['api_key']
     api_url = defaults['api_url']
     proxy = defaults['proxy']
+    timeout = defaults['timeout']
     parser = ArgumentParser(description="getdns is DNS query tool power by dnsdb.io")
     dnsdb_python_sdk_version = __import__('dnsdb_sdk').__version__
     parser.add_argument('-V', '--version', action='version',
@@ -319,6 +301,8 @@ def parse_args(args):
     search_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
     search_parser.add_argument('-v', '--verbose', help='show verbose information', action='store_true', default=False)
     search_parser.add_argument('-D', '--debug', help='run in debug mode', action='store_true', default=False)
+    search_parser.add_argument('-T', '--timeout', help='set timeout(seconds), default %s seconds' % timeout,
+                               default=timeout, type=float)
     search_parser.set_defaults(func=do_search_cmd)
 
     # api user parser
@@ -330,6 +314,8 @@ def parse_args(args):
     api_user_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
     api_user_parser.add_argument('-v', '--verbose', help='show verbose information', action='store_true', default=False)
     api_user_parser.add_argument('-D', '--debug', help='run in debug mode', action='store_true', default=False)
+    api_user_parser.add_argument('-T', '--timeout', help='set timeout(seconds), default %s seconds' % timeout,
+                                 default=timeout, type=float)
     api_user_parser.set_defaults(func=show_api_user_cmd)
 
     # config parser
@@ -339,6 +325,8 @@ def parse_args(args):
     auth_group.add_argument('-k', '--api-key', help='set default API key, default "%s"' % api_key, default=api_key)
     config_parser.add_argument('--api-url', help='set default API URL, default "%s"' % api_url, default=api_url)
     config_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
+    config_parser.add_argument('-T', '--timeout', help='set default timeout(seconds), default %s seconds' % timeout,
+                               default=timeout, type=float)
     config_parser.add_argument('--reset', help='reset configuration', action='store_true', default=False)
     config_parser.add_argument('-s', '--show', help='show current configuration', action='store_true', default=False)
     config_parser.set_defaults(func=config_cmd)
@@ -353,4 +341,4 @@ def main(args=None):
             args = sys.argv[1:]
         parse_args(args)
     except KeyboardInterrupt:
-        show_error("canceled")
+        show_error("Canceled")

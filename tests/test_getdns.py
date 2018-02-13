@@ -5,6 +5,7 @@ import platform
 import sys
 import uuid
 
+from colorama import Fore, Style
 from dnsdb_sdk.api import APIUser, DNSRecord
 from dnsdb_sdk.exceptions import APIException
 from mock import Mock, patch
@@ -16,9 +17,11 @@ import getdns
 try:
     # python 2
     from Queue import Queue
+    from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 except ImportError:
     # python 3
     from queue import Queue
+    from configparser import ConfigParser, NoSectionError, NoOptionError
 
 PY_MAIN_VERSION, _, _ = platform.python_version_tuple()
 PY2 = int(PY_MAIN_VERSION) == 2
@@ -56,11 +59,7 @@ class MockOutput(object):
         self.content += content
 
     def lines(self):
-        lines = filter(lambda x: x and x != '', self.content.split('\n'))
-        if PY2:
-            return lines
-        elif PY3:
-            return list(lines)
+        return list(filter(lambda x: x and x != '', self.content.split('\n')))
 
     def clear(self):
         self.content = ''
@@ -69,9 +68,15 @@ class MockOutput(object):
 class MessageCollector(object):
     def __init__(self):
         self.messages = Queue()
+        self.args = None
+        self.kwargs = None
 
     def collect(self, msg):
         self.messages.put(msg)
+
+    def collect_trace(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
 
     def clear(self):
         self.messages = Queue()
@@ -103,6 +108,29 @@ def get_mock_api_client():
     return client
 
 
+def get_mock_args(api_url=None, api_id=None, api_key=None, domain=None, host=None, ip=None, dns_type=None,
+                  value_domain=None, value_host=None, value_ip=None, email=None, page=1, page_size=50, search_all=False,
+                  proxy=None, timeout=20):
+    args = Mock()
+    setattr(args, 'api_url', api_url)
+    setattr(args, 'api_id', api_id)
+    setattr(args, 'api_key', api_key)
+    setattr(args, 'domain', domain)
+    setattr(args, 'host', host)
+    setattr(args, 'ip', ip)
+    setattr(args, 'type', dns_type)
+    setattr(args, 'value_domain', value_domain)
+    setattr(args, 'value_host', value_host)
+    setattr(args, 'value_ip', value_ip)
+    setattr(args, 'email', email)
+    setattr(args, 'page', page)
+    setattr(args, 'page_size', page_size)
+    setattr(args, 'all', search_all)
+    setattr(args, 'proxy', proxy)
+    setattr(args, 'timeout', timeout)
+    return args
+
+
 def setup_func():
     if os.path.exists(CONFIG_PATH):
         os.remove(CONFIG_PATH)
@@ -116,7 +144,9 @@ def teardown_func():
 
 
 def run_main(cmd):
-    getdns.main(cmd.split(' '))
+    args = ['getdns'] + list(filter(lambda x: x != '', cmd.split(' ')))
+    with patch('sys.argv', new=args):
+        getdns.main()
 
 
 def test_validate_ip():
@@ -168,6 +198,40 @@ def test_get_output_file():
     os.remove('output.txt')
 
 
+def test_get_config_value():
+    conf = ConfigParser()
+    api_url = 'https://api.dnsdb.io'
+    conf.add_section('settings')
+    conf.set('settings', 'api-url', api_url)
+    assert_equal('default', getdns.get_config_value(conf, 'setting', 'api-url', 'default'))
+    assert_equal('default', getdns.get_config_value(conf, 'settings', 'url', 'default'))
+    assert_equal(api_url, getdns.get_config_value(conf, 'settings', 'api-url', 'default'))
+
+
+def test_get_api_client():
+    api_id = generate_uuid()
+    api_key = generate_uuid()
+    timeout = 10
+    client = getdns.get_api_client(api_id, api_key, timeout=timeout)
+    assert_equal(api_id, client.api_id)
+    assert_equal(api_key, client.api_key)
+    assert_equal(timeout, client.timeout)
+
+
+def test_show_error():
+    output = get_mock_output()
+    with patch('sys.stderr', new=output):
+        getdns.show_error('error')
+        assert_equal(Fore.RED + 'error\n' + Style.RESET_ALL, output.content)
+
+
+def test_do_search_cmd():
+    args = get_mock_args(ip='123a')
+    mc = MessageCollector()
+    with patch('getdns.show_error', new=mc.collect):
+        assert_equal(-1, getdns.do_search_cmd(args))
+
+
 @with_setup(setup_func, teardown_func)
 @patch('getdns.read_line', return_value='123')
 @patch('getpass.getpass', return_value='123')
@@ -215,6 +279,19 @@ def test_search_as_custom_format(read_line, getpass):
             assert_equal(content, output.content)
 
 
+@with_setup(setup_func, teardown_func)
+@patch('getdns.read_line', return_value=generate_uuid())
+@patch('getpass.getpass', return_value=generate_uuid())
+def test_search_with_exception(read_line, getpass):
+    client = get_mock_api_client()
+    client.search_dns = Mock(side_effect=APIException(10001, 'unauthorized'))
+    with patch('getdns.get_api_client', return_value=client):
+        mc = MessageCollector()
+        with patch('getdns.show_error', new=mc.collect):
+            run_main('search --ip 123.123.123.123 --value-ip 123.123.123.123 --proxy http://user:pass@localhost:8111')
+            assert_equal('code:10001, message:unauthorized', mc.get())
+
+
 @patch('getdns.read_line', return_value=generate_uuid())
 @patch('getpass.getpass', return_value=generate_uuid())
 def test_api_user(read_line, getpass):
@@ -239,8 +316,15 @@ def test_api_user_with_exception(read_line, getpass):
     with patch('getdns.get_api_client', return_value=client):
         mc = MessageCollector()
         with patch('getdns.show_error', new=mc.collect):
-            run_main('api-user -D -v')
-            assert_equal('code:10001, message:unauthorized', mc.get())
+            if PY2:
+                with patch('traceback._print', new=mc.collect_trace):
+                    run_main('api-user -D -v')
+                    assert_equal('code:10001, message:unauthorized', mc.get())
+                    assert_equal('APIException: code:10001, message:unauthorized\n', mc.args[1])
+            elif PY3:
+                with patch('traceback.print_exception', new=mc.collect_trace):
+                    run_main('api-user -D -v')
+                    assert_equal('code:10001, message:unauthorized', mc.get())
 
 
 @patch('getdns.read_line', return_value=generate_uuid())
@@ -250,7 +334,7 @@ def test_with_keyboard_interrupt(read_line, getpass):
     mc = MessageCollector()
     with patch('getdns.show_error', new=mc.collect):
         run_main('search -d example.com')
-        assert_equal('canceled', mc.get())
+        assert_equal('Canceled', mc.get())
 
 
 def test_config_set_and_show():
@@ -258,7 +342,9 @@ def test_config_set_and_show():
     api_id = uuid.uuid4().hex.replace('-', '')
     api_key = uuid.uuid4().hex.replace('-', '')
     proxy = 'http://user:password@host/'
-    cmd = 'config --api-url %s --api-id %s --api-key %s --proxy %s' % (api_url, api_id, api_key, proxy)
+    timeout = 10
+    cmd = 'config --api-url %s --api-id %s --api-key %s --proxy %s --timeout %s ' % (
+        api_url, api_id, api_key, proxy, timeout)
     run_main(cmd)
     mc = MessageCollector()
     with patch('getdns.show_info', new=mc.collect):
@@ -268,9 +354,24 @@ def test_config_set_and_show():
         assert_equal(api_id, settings['api_id'])
         assert_equal(api_key, settings['api_key'])
         assert_equal(proxy, settings['proxy'])
+        assert_equal(timeout, settings['timeout'])
 
 
 def test_config_reset():
     cmd = 'config --reset'
     run_main(cmd)
     assert_false(os.path.exists(CONFIG_PATH))
+
+
+def test_process_output():
+    result = search_records
+    output = get_mock_output()
+    formatter = getdns.OutputFormatter(json_format=True)
+    with patch('sys.stdout', new=output):
+        output = sys.stdout
+        getdns.process_output(result, output, formatter, 3)
+        assert_equal(3, len(output.lines()))
+    output = get_mock_output()
+    with patch('getdns.get_output_file', new=output):
+        getdns.process_output(result, output, formatter, 4)
+        assert_equal(4, len(output.lines()))
