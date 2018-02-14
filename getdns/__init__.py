@@ -15,7 +15,7 @@ from iptools import ipv4, ipv6
 import json
 import getpass
 
-__version__ = '0.1.2b1'
+__version__ = '0.1.2b2'
 
 try:
     # python2

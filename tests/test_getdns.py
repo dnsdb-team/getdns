@@ -288,8 +288,15 @@ def test_search_with_exception(read_line, getpass):
     with patch('getdns.get_api_client', return_value=client):
         mc = MessageCollector()
         with patch('getdns.show_error', new=mc.collect):
-            run_main('search --ip 123.123.123.123 --value-ip 123.123.123.123 --proxy http://user:pass@localhost:8111')
-            assert_equal('code:10001, message:unauthorized', mc.get())
+            cmd = 'search --ip 123.123.123.123 --value-ip 123.123.123.123 --proxy http://user:pass@localhost:8111 -D'
+            if PY2:
+                with patch('traceback._print', new=mc.collect_trace):
+                    run_main(cmd)
+                    assert_equal('code:10001, message:unauthorized', mc.get())
+            elif PY3:
+                with patch('traceback.print_exception', new=mc.collect_trace):
+                    run_main(cmd)
+                    assert_equal('code:10001, message:unauthorized', mc.get())
 
 
 @patch('getdns.read_line', return_value=generate_uuid())
@@ -299,7 +306,7 @@ def test_api_user(read_line, getpass):
     with patch('getdns.get_api_client', return_value=client):
         mc = MessageCollector()
         with patch('getdns.show_info', new=mc.collect):
-            run_main('api-user -v -D')
+            run_main('api-user -v -D --proxy http://user:pass@localhost:8111')
             user = json.loads(mc.get())
             assert_equal(api_user.api_id, user['api_id'])
             assert_equal(api_user.user, user['user'])
