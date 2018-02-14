@@ -219,7 +219,7 @@ def show_api_user_cmd(args):
     try:
         start_time = datetime.datetime.now()
         api_user = client.get_api_user()
-        show_info(json.dumps(dict(api_user)))
+        show_info(json.dumps(dict(api_user), indent=1))
         if args.verbose:
             show_info('Running time: %s' % (datetime.datetime.now() - start_time))
     except Exception as e:
@@ -235,7 +235,7 @@ def config_cmd(args):
         return
     if args.show:
         defaults = get_defaults()
-        show_info(json.dumps(defaults))
+        show_info(json.dumps(defaults, indent=1))
         return
     if not os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, 'w') as f:
