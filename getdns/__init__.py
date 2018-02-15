@@ -237,11 +237,12 @@ def config_cmd(args):
         defaults = get_defaults()
         show_info(json.dumps(defaults, indent=1))
         return
-    if not os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, 'w') as f:
-            f.write('[auth]\n[settings]\n')
     conf = ConfigParser()
     conf.read(CONFIG_PATH)
+    if not conf.has_section("auth"):
+        conf.add_section("auth")
+    if not conf.has_section("settings"):
+        conf.add_section("settings")
     if args.api_id:
         conf.set('auth', 'api-id', args.api_id)
     if args.api_key:
@@ -269,7 +270,7 @@ def parse_args(args):
     subparsers = parser.add_subparsers(dest='cmd')
     subparsers.required = True
 
-    proxy_help = 'set proxy. HTTP proxy: "http://user:pass@host:port/", SOCKS5 proxy: "socks://user:pass@host:port"'
+    proxy_help = 'set proxy. HTTP proxy: "http://user:pass@host:port/", SOCKS5 proxy: "socks5://user:pass@host:port"'
     format_help = 'set custom output format. #{host} represents DNS record\'s host, #{type} represents DNS ' \
                   'record\'s type, #{value} represents DNS record\'s value. For example: -f "#{host},#{type},#{value}"'
     # search parser
@@ -320,9 +321,8 @@ def parse_args(args):
 
     # config parser
     config_parser = subparsers.add_parser('config', help='set configurations')
-    auth_group = config_parser.add_argument_group('authentication options')
-    auth_group.add_argument('-i', '--api-id', help='set default API ID, default "%s"' % api_id, default=api_id)
-    auth_group.add_argument('-k', '--api-key', help='set default API key, default "%s"' % api_key, default=api_key)
+    config_parser.add_argument('-i', '--api-id', help='set default API ID, default "%s"' % api_id, default=api_id)
+    config_parser.add_argument('-k', '--api-key', help='set default API key, default "%s"' % api_key, default=api_key)
     config_parser.add_argument('--api-url', help='set default API URL, default "%s"' % api_url, default=api_url)
     config_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
     config_parser.add_argument('-T', '--timeout', help='set default timeout(seconds), default %s seconds' % timeout,
