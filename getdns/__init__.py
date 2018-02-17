@@ -6,7 +6,7 @@ import datetime
 import os
 import sys
 import traceback
-from argparse import ArgumentParser
+from argparse import ArgumentParser, RawTextHelpFormatter
 
 from colorama import Fore, Style
 from dnsdb_sdk.api import APIClient
@@ -256,6 +256,12 @@ def config_cmd(args):
     conf.write(open(CONFIG_PATH, "w"))
 
 
+def init_auth_options(parser, api_id, api_key):
+    auth_group = parser.add_argument_group('authentication options')
+    auth_group.add_argument('-i', '--api-id', help='set API ID (default "%s")' % api_id, default=api_id)
+    auth_group.add_argument('-k', '--api-key', help='set API key (default "%s")' % api_key, default=api_key)
+
+
 def parse_args(args):
     defaults = get_defaults()
     api_id = defaults['api_id']
@@ -263,16 +269,23 @@ def parse_args(args):
     api_url = defaults['api_url']
     proxy = defaults['proxy']
     timeout = defaults['timeout']
-    parser = ArgumentParser(description="getdns is DNS query tool power by dnsdb.io")
+    parser = ArgumentParser(description="search DNS records using the DNSDB Web API",
+                            formatter_class=RawTextHelpFormatter)
     dnsdb_python_sdk_version = __import__('dnsdb_sdk').__version__
     parser.add_argument('-V', '--version', action='version',
-                        version='''getdns: %s dnsdb-python-sdk: %s''' % (__version__, dnsdb_python_sdk_version))
-    subparsers = parser.add_subparsers(dest='cmd')
+                        version="getdns: %s\ndnsdb-python-sdk: %s\nDNSDB Web API: %s" % (
+                            __version__, dnsdb_python_sdk_version, APIClient.API_VERSION))
+    subparsers = parser.add_subparsers(dest='cmd', title='commands')
     subparsers.required = True
 
     proxy_help = 'set proxy. HTTP proxy: "http://user:pass@host:port/", SOCKS5 proxy: "socks5://user:pass@host:port"'
+    config_proxy_help = 'set the default proxy. HTTP proxy: "http://user:pass@host:port/", SOCKS5 proxy: "socks5://user:pass@host:port"'
     format_help = 'set custom output format. #{host} represents DNS record\'s host, #{type} represents DNS ' \
                   'record\'s type, #{value} represents DNS record\'s value. For example: -f "#{host},#{type},#{value}"'
+    if proxy:
+        proxy_help += ' (default "%s")' % proxy
+        config_proxy_help += ' (the current configuration is "%s")' % proxy
+
     # search parser
     search_parser = subparsers.add_parser('search', help='search DNS records')
     search_group = search_parser.add_argument_group('search options')
@@ -284,48 +297,51 @@ def parse_args(args):
     search_group.add_argument('--value-host', help='search DNS by value_host')
     search_group.add_argument('--value-ip', help='search DNS by value_ip')
     search_group.add_argument('--email', help='search DNS by email')
-    search_group.add_argument('--page', help='set query page number', type=int, default=1)
+    search_group.add_argument('--page', help='set query page number (default 1)', type=int, default=1)
     search_group.add_argument('--page-size', help='set query page size', type=int, default=50)
     search_group.add_argument('-a', '--all', help='retrieve all results, it will ignored [--page] option',
                               action='store_true', default=False)
-    auth_group = search_parser.add_argument_group('authentication options')
-    auth_group.add_argument('-i', '--api-id', help='set API ID, default "%s"' % api_id, default=api_id)
-    auth_group.add_argument('-k', '--api-key', help='set API key, default "%s"' % api_key, default=api_key)
+    init_auth_options(search_parser, api_id, api_key)
     search_parser.add_argument('-o', '--output', help='specify output file, default "-", "-" represents stdout',
                                default='-')
     output_format_options = search_parser.add_mutually_exclusive_group()
-    output_format_options.add_argument('-j', '--json', help='set JSON output', action='store_true', default=True)
+    output_format_options.add_argument('-j', '--json', help='set JSON output (This is the default output format)', action='store_true', default=True)
     output_format_options.add_argument('-c', '--csv', help='set CSV output', action='store_true', default=False)
     output_format_options.add_argument('-f', '--format', help=format_help)
     search_parser.add_argument('-m', '--max', help='set the maximum number of search results for the output', type=int)
     search_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
-    search_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
+    search_parser.add_argument('--api-url', help='set API URL (default "%s")' % api_url, default=api_url)
     search_parser.add_argument('-v', '--verbose', help='show verbose information', action='store_true', default=False)
     search_parser.add_argument('-D', '--debug', help='run in debug mode', action='store_true', default=False)
-    search_parser.add_argument('-T', '--timeout', help='set timeout(seconds), default %s seconds' % timeout,
+    search_parser.add_argument('-T', '--timeout', help='set the socket timeout (default %s seconds)' % timeout,
                                default=timeout, type=float)
     search_parser.set_defaults(func=do_search_cmd)
 
     # api user parser
     api_user_parser = subparsers.add_parser('api-user', help='get API user information')
-    auth_group = api_user_parser.add_argument_group('authentication options')
-    auth_group.add_argument('-i', '--api-id', help='set API ID, default "%s"' % api_id, default=api_id)
-    auth_group.add_argument('-k', '--api-key', help='set API key, default "%s"' % api_key, default=api_key)
+    init_auth_options(api_user_parser, api_id, api_key)
     api_user_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
-    api_user_parser.add_argument('--api-url', help='set API URL, default "%s"' % api_url, default=api_url)
+    api_user_parser.add_argument('--api-url', help='set API URL (default "%s")' % api_url, default=api_url)
     api_user_parser.add_argument('-v', '--verbose', help='show verbose information', action='store_true', default=False)
     api_user_parser.add_argument('-D', '--debug', help='run in debug mode', action='store_true', default=False)
-    api_user_parser.add_argument('-T', '--timeout', help='set timeout(seconds), default %s seconds' % timeout,
+    api_user_parser.add_argument('-T', '--timeout', help='set the socket timeout, (default %s seconds)' % timeout,
                                  default=timeout, type=float)
     api_user_parser.set_defaults(func=show_api_user_cmd)
 
     # config parser
     config_parser = subparsers.add_parser('config', help='set configurations')
-    config_parser.add_argument('-i', '--api-id', help='set default API ID, default "%s"' % api_id, default=api_id)
-    config_parser.add_argument('-k', '--api-key', help='set default API key, default "%s"' % api_key, default=api_key)
-    config_parser.add_argument('--api-url', help='set default API URL, default "%s"' % api_url, default=api_url)
-    config_parser.add_argument('-P', '--proxy', help=proxy_help, default=proxy)
-    config_parser.add_argument('-T', '--timeout', help='set default timeout(seconds), default %s seconds' % timeout,
+    config_parser.add_argument('-i', '--api-id',
+                               help='set the default API ID (the current configuration is "%s")' % api_id,
+                               default=api_id)
+    config_parser.add_argument('-k', '--api-key',
+                               help='set the default API key (the current configuration is "%s")' % api_key,
+                               default=api_key)
+    config_parser.add_argument('--api-url',
+                               help='set the default API URL (the current configuration is "%s")' % api_url,
+                               default=api_url)
+    config_parser.add_argument('-P', '--proxy', help=config_proxy_help, default=proxy)
+    config_parser.add_argument('-T', '--timeout',
+                               help='set the default socket timeout (the current configuration is %s seconds)' % timeout,
                                default=timeout, type=float)
     config_parser.add_argument('--reset', help='reset configuration', action='store_true', default=False)
     config_parser.add_argument('-s', '--show', help='show current configuration', action='store_true', default=False)
