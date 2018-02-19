@@ -10,7 +10,7 @@ from dnsdb_sdk.api import APIUser, DNSRecord
 from dnsdb_sdk.exceptions import APIException
 from mock import Mock, patch
 from nose import with_setup
-from nose.tools import assert_equal, assert_false, assert_true, raises
+from nose.tools import assert_equal, assert_false, assert_true
 
 import getdns
 
@@ -336,7 +336,7 @@ def test_api_user_with_exception(read_line, getpass):
 
 @patch('getdns.read_line', return_value=generate_uuid())
 @patch('getpass.getpass', return_value=generate_uuid())
-@patch('getdns.parse_args', new=Mock(side_effect=KeyboardInterrupt()))
+@patch('getdns.get_parser', new=Mock(side_effect=KeyboardInterrupt()))
 def test_with_keyboard_interrupt(read_line, getpass):
     mc = MessageCollector()
     with patch('getdns.show_error', new=mc.collect):
@@ -382,3 +382,27 @@ def test_process_output():
     with patch('getdns.get_output_file', new=output):
         getdns.process_output(result, output, formatter, 4)
         assert_equal(4, len(output.lines()))
+
+
+def test_raw_text_version_call():
+    self = Mock()
+    self.version = getdns.__version__
+    parser = Mock()
+    getdns.raw_text_version_call(self, parser, Mock(), Mock())
+    parser.exit.assert_called_once()
+    parser._print_message.assert_called_once()
+
+
+def test_DefaultsHelpFormatter():
+    formatter = getdns.DefaultsHelpFormatter("getdns")
+    action = Mock()
+    action.help = "set size"
+    action.default = 5
+    assert_equal('set size (default: %(default)s)', formatter._get_help_string(action))
+    action.default = None
+    assert_equal('set size', formatter._get_help_string(action))
+
+    r = formatter._split_lines("set\nsize", width=70)
+    assert_equal(['set size'], r)
+    r = formatter._split_lines("R|set\nsize", width=70)
+    assert_equal(['set', 'size'], r)

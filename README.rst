@@ -10,6 +10,8 @@ GetDNS
     :target: https://pypi.python.org/pypi/dnsdb-getdns
 .. image:: https://img.shields.io/pypi/pyversions/dnsdb-getdns.svg
     :target: https://pypi.python.org/pypi/dnsdb-getdns
+.. image:: https://img.shields.io/pypi/implementation/dnsdb-getdns.svg
+    :target: https://pypi.python.org/pypi/dnsdb-getdns
 .. image:: https://img.shields.io/pypi/l/dnsdb-getdns.svg
     :target: https://pypi.python.org/pypi/dnsdb-getdns
 
