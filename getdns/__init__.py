@@ -24,7 +24,7 @@ except ImportError:
     # python3
     from configparser import ConfigParser, NoSectionError, NoOptionError
 
-CONFIG_PATH = os.path.expanduser("~/.getdns")
+CONFIG_PATH = os.environ.get('GETDNS_CONF', os.path.expanduser("~/.getdns"))
 DEFAULT_TIMEOUT = 20
 API_BASE_URL = 'https://api.dnsdb.io'
 
